@@ -1,17 +1,38 @@
 package tplink
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type HS110 struct {
 	HS100
-	ip string
 }
 
-func (p *HS110) MeterInfo() (string, error) {
-	json := `{"system":{"get_sysinfo":{}}, "emeter":{"get_realtime":{},"get_vgain_igain":{}}}`
-	data := encrypt(json)
-	reading, err := send(p.ip, data)
+func (p *HS110) Meter() (*Meter, error) {
+	data, err := p.exec(GET_METER)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return decrypt(reading[4:]), nil
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
+
+	return r.EMeter.Meter, nil
+}
+
+func (p *HS110) DailyStats(month int, year int) ([]*DailyUsage, error) {
+	data, err := p.exec(fmt.Sprintf(GET_DAILY_STATS, month, year))
+	if err != nil {
+		return nil, err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
+
+	return r.EMeter.DailyStats.DailyUsageList, nil
 }
