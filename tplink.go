@@ -15,15 +15,17 @@ const (
 	connTimeout = 10 * time.Second
 )
 
+// TODO: check for panic when a bad or misspell command is passed
+
 // https://github.com/softScheck/tplink-smartplug/blob/master/tplink-smarthome-commands.txt
 const (
 	// Plug HS100 and HS110
 	GET_INFO     = `{"system":{"get_sysinfo":{}}}`
 	REBOOT       = `{"system":{"reboot":{"delay":1}}}`
 	RESET        = `{"system":{"reset":{"delay":1}}}`
-	SET_ALIAS    = `{"system":{"set_dev_alias":{"alias":"supercool plug"}}}`
-	TURN_OFF_LED = `{"system":{"set_led_off":{"off":1}}}`
-	TURN_ON_LED  = `{"system":{"set_led_off":{"off":0}}}` // need to be tested
+	SET_ALIAS    = `{"system":{"set_dev_alias":{"alias":"%s"}}}`
+	TURN_LED_ON  = `{"system":{"set_led_off":{"off":1}}}`
+	TURN_LED_OFF = `{"system":{"set_led_off":{"off":0}}}` // need to be tested
 	SET_LOCATION = `{"system":{"set_dev_location":{"longitude":6.9582814,"latitude":50.9412784}}}`
 	GET_ICON     = `{"system":{"get_dev_icon":null}}`
 	SET_ICON     = `{"system":{"set_dev_icon":{"icon":"xxxx","hash":"ABCD"}}}`
@@ -44,7 +46,13 @@ const (
 
 type Response struct {
 	System struct {
-		*Info `json:"get_sysinfo"`
+		*Info    `json:"get_sysinfo"`
+		SetAlias struct {
+			ErrorCode int `json:"err_code"`
+		} `json:"set_dev_alias"`
+		SetState struct {
+			ErrorCode int `json:"err_code"`
+		} `json:"set_relay_state"`
 	}
 
 	EMeter struct {

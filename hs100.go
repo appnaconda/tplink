@@ -1,6 +1,9 @@
 package tplink
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type HS100 struct {
 	ip string
@@ -42,16 +45,94 @@ func (p *HS100) Reset() (string, error) {
 	return p.exec(RESET)
 }
 
+// Set alias/name
+func (p *HS100) SetAlias(alias string) error {
+	data, err := p.exec(fmt.Sprintf(SET_ALIAS, alias))
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.System.SetAlias.ErrorCode != 0 {
+		return fmt.Errorf("failed to set alias. Error code=%d", r.System.SetAlias.ErrorCode)
+	}
+	return nil
+}
+
 // Turn On
 func (p *HS100) TurnOn() error {
-	_, err := p.exec(TURN_ON)
-	return err
+	data, err := p.exec(TURN_ON)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.System.SetState.ErrorCode != 0 {
+		return fmt.Errorf("failed to turn the device off. Error code=%d", r.System.SetState.ErrorCode)
+	}
+	return nil
 }
 
 // Turn Off
 func (p *HS100) TurnOff() error {
-	_, err := p.exec(TURN_OFF)
-	return err
+	data, err := p.exec(TURN_OFF)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.System.SetState.ErrorCode != 0 {
+		return fmt.Errorf("failed to turn the device off. Error code=%d", r.System.SetState.ErrorCode)
+	}
+	return nil
+}
+
+// Turn Led Light On
+func (p *HS100) TurnLedOn() error {
+	data, err := p.exec(TURN_LED_ON)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.System.SetState.ErrorCode != 0 {
+		return fmt.Errorf("failed to turn the device off. Error code=%d", r.System.SetState.ErrorCode)
+	}
+	return nil
+}
+
+// Turn Led Light Off
+func (p *HS100) TurnLedOff() error {
+	data, err := p.exec(TURN_LED_OFF)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.System.SetState.ErrorCode != 0 {
+		return fmt.Errorf("failed to turn the device off. Error code=%d", r.System.SetState.ErrorCode)
+	}
+	return nil
 }
 
 func (p *HS100) Time() (string, error) {
