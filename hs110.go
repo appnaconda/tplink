@@ -10,7 +10,7 @@ type HS110 struct {
 }
 
 func (p *HS110) Meter() (*Meter, error) {
-	data, err := p.exec(GET_METER)
+	data, err := exec(p.ip, GET_METER)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (p *HS110) Meter() (*Meter, error) {
 }
 
 func (p *HS110) DailyStats(month int, year int) ([]*DailyUsage, error) {
-	data, err := p.exec(fmt.Sprintf(GET_DAILY_STATS, month, year))
+	data, err := exec(p.ip, fmt.Sprintf(GET_DAILY_STATS, month, year))
 	if err != nil {
 		return nil, err
 	}

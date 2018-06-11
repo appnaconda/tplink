@@ -2,20 +2,17 @@
 package tplink
 
 import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
-	"io/ioutil"
+	"bufio"
+	"encoding/json"
 	"net"
+	"strconv"
 	"time"
 )
 
 const (
 	defaultPort = 9999
-	connTimeout = 10 * time.Second
+	connTimeout = 1 * time.Second
 )
-
-// TODO: check for panic when a bad or misspell command is passed
 
 // https://github.com/softScheck/tplink-smartplug/blob/master/tplink-smarthome-commands.txt
 const (
@@ -24,8 +21,8 @@ const (
 	REBOOT       = `{"system":{"reboot":{"delay":1}}}`
 	RESET        = `{"system":{"reset":{"delay":1}}}`
 	SET_ALIAS    = `{"system":{"set_dev_alias":{"alias":"%s"}}}`
-	TURN_LED_ON  = `{"system":{"set_led_off":{"off":1}}}`
-	TURN_LED_OFF = `{"system":{"set_led_off":{"off":0}}}` // need to be tested
+	TURN_LED_ON  = `{"system":{"set_led_off":{"off":0}}}`
+	TURN_LED_OFF = `{"system":{"set_led_off":{"off":1}}}`
 	SET_LOCATION = `{"system":{"set_dev_location":{"longitude":6.9582814,"latitude":50.9412784}}}`
 	GET_ICON     = `{"system":{"get_dev_icon":null}}`
 	SET_ICON     = `{"system":{"set_dev_icon":{"icon":"xxxx","hash":"ABCD"}}}`
@@ -44,6 +41,11 @@ const (
 	GET_SCHEDULE_RULES_LIST = `{"schedule":{"get_rules":null}}`
 )
 
+type Device struct {
+	IPAddress string
+	Info      Info
+}
+
 type Response struct {
 	System struct {
 		*Info    `json:"get_sysinfo"`
@@ -58,6 +60,22 @@ type Response struct {
 	EMeter struct {
 		*Meter     `json:"get_realtime"`
 		DailyStats *DailyStats `json:"get_daystat"`
+	}
+
+	Time struct {
+		GetTime struct {
+			Year      int `json:"year"`
+			Month     int `json:"month"`
+			Day       int `json:"mday"`
+			Hour      int `json:"hour"`
+			Minutes   int `json:"min"`
+			Seconds   int `json:"sec"`
+			ErrorCode int `json:"err_code"`
+		} `json:"get_time"`
+		GetTimeZone struct {
+			Index     int `json:"index"`
+			ErrorCode int `json:"err_code"`
+		} `json:"get_timezone"`
 	}
 }
 
@@ -109,53 +127,107 @@ type DailyUsage struct {
 	Energy float64
 }
 
-// encript message
+func decrypt(request []byte) string {
+	result := make([]byte, len(request))
+	key := byte(0xAB)
+	for i, c := range request {
+		var a = key ^ uint8(c)
+		key = uint8(c)
+		result[i] = a
+	}
+	return string(result)
+}
+
 func encrypt(s string) []byte {
-	n := len(s)
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, uint32(n))
-	ciphertext := []byte(buf.Bytes())
-
+	request := []byte(s)
 	key := byte(0xAB)
-	payload := make([]byte, n)
-	for i := 0; i < n; i++ {
-		payload[i] = s[i] ^ key
-		key = payload[i]
+	result := make([]byte, 4+len(request))
+	result[0] = 0x0
+	result[1] = 0x0
+	result[2] = 0x0
+	result[3] = 0x0
+	for i, c := range request {
+		var a = key ^ uint8(c)
+		key = uint8(a)
+		result[i+4] = a
 	}
-
-	for i := 0; i < len(payload); i++ {
-		ciphertext = append(ciphertext, payload[i])
-	}
-
-	return ciphertext
+	return result[4:]
 }
 
-func decrypt(ciphertext []byte) string {
-	n := len(ciphertext)
-	key := byte(0xAB)
-	var nextKey byte
-	for i := 0; i < n; i++ {
-		nextKey = ciphertext[i]
-		ciphertext[i] = ciphertext[i] ^ key
-		key = nextKey
-	}
-	return string(ciphertext)
-}
-
-func exec(ip string, payload []byte) ([]byte, error) {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, defaultPort), connTimeout)
+func exec(ip string, cmd string) (string, error) {
+	data := encrypt(cmd)
+	port := 9999
+	conn, err := net.Dial("udp4", ip+":"+strconv.Itoa(port))
 	if err != nil {
-		return nil, fmt.Errorf("cannot connnect to plug: %s", err)
+		return "", err
 	}
 	defer conn.Close()
-
-	_, err = conn.Write(payload)
-	data, err := ioutil.ReadAll(conn)
+	_, err = conn.Write(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read data from plug: %s", err)
+		return "", err
 	}
-	return data, nil
+	rData := make([]byte, 1500)
+	rLen, err := bufio.NewReader(conn).Read(rData)
+	if err != nil {
+		return "", err
+	}
 
+	return decrypt(rData[:rLen]), nil
+}
+
+func Scan(timeout time.Duration) ([]Device, error) {
+	devices := []Device{}
+
+	broadcastAddr, err := net.ResolveUDPAddr("udp", "255.255.255.255:9999")
+	if err != nil {
+		return nil, err
+	}
+
+	fromAddr, err := net.ResolveUDPAddr("udp", "0.0.0.0:8755")
+	if err != nil {
+		return nil, err
+	}
+
+	sock, err := net.ListenUDP("udp", fromAddr)
+	defer sock.Close()
+	if err != nil {
+		return nil, err
+	}
+	sock.SetReadBuffer(2048)
+
+	//cmd := encrypt(GET_INFO)
+	cmd := encrypt(GET_INFO)
+	_, err = sock.WriteToUDP(cmd, broadcastAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	err = sock.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		buff := make([]byte, 2048)
+		rlen, addr, err := sock.ReadFromUDP(buff)
+		if err != nil {
+			break
+		}
+
+		data := decrypt(buff[:rlen])
+
+		r := Response{}
+		if err := json.Unmarshal([]byte(data), &r); err != nil {
+			return nil, err
+		}
+
+		devices = append(devices, Device{
+			IPAddress: addr.IP.String(),
+			Info:      *r.System.Info,
+		})
+	}
+
+	return devices, err
 }
 
 func NewHS110(ip string) *HS110 {

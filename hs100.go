@@ -3,25 +3,16 @@ package tplink
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type HS100 struct {
 	ip string
 }
 
-func (p *HS100) exec(cmd string) (string, error) {
-	data := encrypt(cmd)
-	reading, err := exec(p.ip, data)
-	if err != nil {
-		return "", err
-	}
-
-	return decrypt(reading[4:]), nil
-}
-
 // Get System Info (Software & Hardware Versions, MAC, deviceID, hwID etc.)
 func (p *HS100) Info() (*Info, error) {
-	data, err := p.exec(GET_INFO)
+	data, err := exec(p.ip, GET_INFO)
 	if err != nil {
 		return nil, err
 	}
@@ -37,17 +28,17 @@ func (p *HS100) Info() (*Info, error) {
 
 // Reboot
 func (p *HS100) Reboot() (string, error) {
-	return p.exec(REBOOT)
+	return exec(p.ip, REBOOT)
 }
 
 // Reset
 func (p *HS100) Reset() (string, error) {
-	return p.exec(RESET)
+	return exec(p.ip, RESET)
 }
 
 // Set alias/name
 func (p *HS100) SetAlias(alias string) error {
-	data, err := p.exec(fmt.Sprintf(SET_ALIAS, alias))
+	data, err := exec(p.ip, fmt.Sprintf(SET_ALIAS, alias))
 	if err != nil {
 		return err
 	}
@@ -65,7 +56,7 @@ func (p *HS100) SetAlias(alias string) error {
 
 // Turn On
 func (p *HS100) TurnOn() error {
-	data, err := p.exec(TURN_ON)
+	data, err := exec(p.ip, TURN_ON)
 	if err != nil {
 		return err
 	}
@@ -83,7 +74,7 @@ func (p *HS100) TurnOn() error {
 
 // Turn Off
 func (p *HS100) TurnOff() error {
-	data, err := p.exec(TURN_OFF)
+	data, err := exec(p.ip, TURN_OFF)
 	if err != nil {
 		return err
 	}
@@ -101,7 +92,7 @@ func (p *HS100) TurnOff() error {
 
 // Turn Led Light On
 func (p *HS100) TurnLedOn() error {
-	data, err := p.exec(TURN_LED_ON)
+	data, err := exec(p.ip, TURN_LED_ON)
 	if err != nil {
 		return err
 	}
@@ -119,7 +110,7 @@ func (p *HS100) TurnLedOn() error {
 
 // Turn Led Light Off
 func (p *HS100) TurnLedOff() error {
-	data, err := p.exec(TURN_LED_OFF)
+	data, err := exec(p.ip, TURN_LED_OFF)
 	if err != nil {
 		return err
 	}
@@ -135,22 +126,55 @@ func (p *HS100) TurnLedOff() error {
 	return nil
 }
 
-func (p *HS100) Time() (string, error) {
-	data := encrypt(GET_TIME)
-	reading, err := exec(p.ip, data)
+// TODO: return a timezone instead of index
+func (p *HS100) TimeZone() (int, error) {
+	data, err := exec(p.ip, GET_TIMEZONE)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
-	return decrypt(reading[4:]), nil
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return 0, err
+	}
+
+	tz := r.Time.GetTimeZone
+
+	if tz.ErrorCode != 0 {
+		return 0, fmt.Errorf("failed to get time zone. Error code=%d", r.System.SetState.ErrorCode)
+	}
+
+	return tz.Index, nil
 }
 
-func (p *HS110) ScheduleRules() (string, error) {
-	data := encrypt(GET_SCHEDULE_RULES_LIST)
-	reading, err := exec(p.ip, data)
+func (p *HS100) Time() (time.Time, error) {
+	data, err := exec(p.ip, GET_TIME)
 	if err != nil {
-		return "", err
+		return time.Time{}, err
 	}
 
-	return decrypt(reading[4:]), nil
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return time.Time{}, err
+	}
+
+	t := r.Time.GetTime
+
+	if t.ErrorCode != 0 {
+		return time.Time{}, fmt.Errorf("failed to get time. Error code=%d", r.System.SetState.ErrorCode)
+	}
+
+	// TODO: get timezone
+	//timezone, err := p.TimeZone()
+	// if err != nill {
+	//	return "", fmt.Errorf("failed to get device timezone: %s", err)
+	//}
+
+	loc, err := time.LoadLocation("EST")
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get device timezone: %s", err)
+	}
+	d := time.Date(t.Year, time.Month(t.Month), t.Day, t.Hour, t.Minutes, t.Seconds, 0, loc)
+
+	return d, nil
 }

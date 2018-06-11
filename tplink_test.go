@@ -7,7 +7,7 @@ func TestEncription(t *testing.T) {
 
 	for _, v := range tt {
 		e := encrypt(v)
-		d := decrypt(e[4:])
+		d := decrypt(e)
 		if v != d {
 			t.Errorf("expecting %s; got %s", v, d)
 		}
