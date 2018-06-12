@@ -23,14 +23,12 @@ const (
 	SET_ALIAS    = `{"system":{"set_dev_alias":{"alias":"%s"}}}`
 	TURN_LED_ON  = `{"system":{"set_led_off":{"off":0}}}`
 	TURN_LED_OFF = `{"system":{"set_led_off":{"off":1}}}`
-	SET_LOCATION = `{"system":{"set_dev_location":{"longitude":6.9582814,"latitude":50.9412784}}}`
-	GET_ICON     = `{"system":{"get_dev_icon":null}}`
-	SET_ICON     = `{"system":{"set_dev_icon":{"icon":"xxxx","hash":"ABCD"}}}`
 	TURN_ON      = `{"system":{"set_relay_state":{"state":1}}}`
 	TURN_OFF     = `{"system":{"set_relay_state":{"state":0}}}`
 	GET_TIME     = `{"time":{"get_time":{}}}`
 	GET_TIMEZONE = `{"time":{"get_timezone":null}}`
-	SET_TIMEZONE = `{"time":{"set_timezone":{"year":2016,"month":1,"mday":1,"hour":10,"min":10,"sec":10,"index":42}}}`
+	SET_TIMEZONE = `{"time":{"set_timezone":{"year":%d,"month":%d,"mday":%d,"hour":%d,"min":%d,"sec":%d,"index":%d}}}`
+
 	// HS110
 	GET_METER         = `{"system":{"get_sysinfo":{}}, "emeter":{"get_realtime":{},"get_vgain_igain":{}}}`
 	GET_DAILY_STATS   = `{"emeter":{"get_daystat":{"month":%d,"year":%d}}}`
@@ -39,6 +37,10 @@ const (
 
 	// Schedule
 	GET_SCHEDULE_RULES_LIST = `{"schedule":{"get_rules":null}}`
+
+	// WLAN Commands
+	SCAN_WIFI = `{"netif":{"get_scaninfo":{"refresh":1}}}`
+	SET_WIFI  = `{"netif":{"set_stainfo":{"ssid":"%s","password":"%s","key_type":%d}}}`
 )
 
 type Device struct {
@@ -50,10 +52,12 @@ type Response struct {
 	System struct {
 		*Info    `json:"get_sysinfo"`
 		SetAlias struct {
-			ErrorCode int `json:"err_code"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
 		} `json:"set_dev_alias"`
 		SetState struct {
-			ErrorCode int `json:"err_code"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
 		} `json:"set_relay_state"`
 	}
 
@@ -64,19 +68,40 @@ type Response struct {
 
 	Time struct {
 		GetTime struct {
-			Year      int `json:"year"`
-			Month     int `json:"month"`
-			Day       int `json:"mday"`
-			Hour      int `json:"hour"`
-			Minutes   int `json:"min"`
-			Seconds   int `json:"sec"`
-			ErrorCode int `json:"err_code"`
+			Year         int    `json:"year"`
+			Month        int    `json:"month"`
+			Day          int    `json:"mday"`
+			Hour         int    `json:"hour"`
+			Minutes      int    `json:"min"`
+			Seconds      int    `json:"sec"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
 		} `json:"get_time"`
+
 		GetTimeZone struct {
-			Index     int `json:"index"`
-			ErrorCode int `json:"err_code"`
+			Index        int    `json:"index"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
 		} `json:"get_timezone"`
+
+		SetTimeZone struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"set_timezone"`
 	}
+
+	NetIf struct {
+		GetScanInfo struct {
+			List         []AP   `json:"ap_list"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"get_scaninfo"`
+
+		SetWifi struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"set_stainfo"`
+	} `json:"netif"`
 }
 
 type Info struct {
@@ -125,6 +150,11 @@ type DailyUsage struct {
 	Month  int
 	Day    int
 	Energy float64
+}
+
+type AP struct {
+	SSID    string `json:"ssid"`
+	KeyType int    `json:"key_type"`
 }
 
 func decrypt(request []byte) string {
@@ -195,7 +225,6 @@ func Scan(timeout time.Duration) ([]Device, error) {
 	}
 	sock.SetReadBuffer(2048)
 
-	//cmd := encrypt(GET_INFO)
 	cmd := encrypt(GET_INFO)
 	_, err = sock.WriteToUDP(cmd, broadcastAddr)
 	if err != nil {

@@ -178,3 +178,61 @@ func (p *HS100) Time() (time.Time, error) {
 
 	return d, nil
 }
+
+func (p *HS100) SetTimeZone(t time.Time) error {
+	// TODO: timezone
+	cmd := fmt.Sprintf(SET_TIMEZONE, t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 18)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.Time.SetTimeZone.ErrorCode != 0 {
+		return fmt.Errorf("failed to set timezone. Error code=%d, msg: %s", r.Time.SetTimeZone.ErrorCode, r.Time.SetTimeZone.ErrorMessage)
+	}
+
+	return nil
+}
+
+func (p *HS100) ScanWifi() ([]AP, error) {
+	data, err := exec(p.ip, SCAN_WIFI)
+	if err != nil {
+		return nil, err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
+
+	if r.NetIf.GetScanInfo.ErrorCode != 0 {
+		return nil, fmt.Errorf("failed to scan for wifi networks. Error code=%d, msg: %s", r.NetIf.GetScanInfo.ErrorCode, r.NetIf.GetScanInfo.ErrorMessage)
+	}
+
+	return r.NetIf.GetScanInfo.List, nil
+}
+
+func (p *HS100) SetWifi(ssid string, password string, keyType int) error {
+	cmd := fmt.Sprintf(SET_WIFI, ssid, password, keyType)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.NetIf.SetWifi.ErrorCode != 0 {
+		return fmt.Errorf("failed to set wifi. Error code=%d, msg: %s", r.NetIf.SetWifi.ErrorCode, r.NetIf.SetWifi.ErrorMessage)
+	}
+	fmt.Println(data)
+
+	return nil
+}
