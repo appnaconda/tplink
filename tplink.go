@@ -14,9 +14,18 @@ const (
 	connTimeout = 1 * time.Second
 )
 
+type Action int
+
+const (
+	OFF Action = iota
+	ON
+)
+
 // https://github.com/softScheck/tplink-smartplug/blob/master/tplink-smarthome-commands.txt
 const (
-	// Plug HS100 and HS110
+	// --- Plug HS100 and HS110 ---
+
+	// System Commands
 	GET_INFO     = `{"system":{"get_sysinfo":{}}}`
 	REBOOT       = `{"system":{"reboot":{"delay":1}}}`
 	RESET        = `{"system":{"reset":{"delay":1}}}`
@@ -25,22 +34,33 @@ const (
 	TURN_LED_OFF = `{"system":{"set_led_off":{"off":1}}}`
 	TURN_ON      = `{"system":{"set_relay_state":{"state":1}}}`
 	TURN_OFF     = `{"system":{"set_relay_state":{"state":0}}}`
-	GET_TIME     = `{"time":{"get_time":{}}}`
-	GET_TIMEZONE = `{"time":{"get_timezone":null}}`
-	SET_TIMEZONE = `{"time":{"set_timezone":{"year":%d,"month":%d,"mday":%d,"hour":%d,"min":%d,"sec":%d,"index":%d}}}`
-
-	// HS110
-	GET_METER         = `{"system":{"get_sysinfo":{}}, "emeter":{"get_realtime":{},"get_vgain_igain":{}}}`
-	GET_DAILY_STATS   = `{"emeter":{"get_daystat":{"month":%d,"year":%d}}}`
-	GET_MONTHLY_STATS = `{"emeter":{""get_monthstat":{"year":2016}}}`
-	ERASE_ALL_STATS   = `{"emeter":{"erase_emeter_stat":null}}`
-
-	// Schedule
-	GET_SCHEDULE_RULES_LIST = `{"schedule":{"get_rules":null}}`
-
 	// WLAN Commands
 	SCAN_WIFI = `{"netif":{"get_scaninfo":{"refresh":1}}}`
 	SET_WIFI  = `{"netif":{"set_stainfo":{"ssid":"%s","password":"%s","key_type":%d}}}`
+	// Cloud Commands
+	GET_CLOUD_INFO = `{"cnCloud":{"get_info":null}}`
+	SET_CLOUD_URL  = `{"cnCloud":{"set_server_url":{"server":"%s"}}}`
+	CLOUD_BIND     = `{"cnCloud":{"bind":{"username":"%s", "password":"%s"}}}`
+	CLOUD_UNBIND   = `{"cnCloud":{"unbind":null}}`
+	// Time Commands
+	GET_TIME     = `{"time":{"get_time":{}}}`
+	GET_TIMEZONE = `{"time":{"get_timezone":null}}`
+	SET_TIMEZONE = `{"time":{"set_timezone":{"year":%d,"month":%d,"mday":%d,"hour":%d,"min":%d,"sec":%d,"index":%d}}}`
+	// Schedule Commands
+	GET_NEXT_SCHEDULE_ACTION = `{"schedule":{"get_next_action":null}}`
+	GET_SCHEDULE_RULES_LIST  = `{"schedule":{"get_rules":null}}`
+	// Countdown Rule Commands
+	// TODO
+	// Anti-Theft Rule Commands (aka Away Mode)
+	// TODO
+
+	//  --- HS110 only ---
+
+	// EMeter Energy Usage Statistics Commands
+	GET_METER         = `{"system":{"get_sysinfo":{}}, "emeter":{"get_realtime":{},"get_vgain_igain":{}}}`
+	GET_DAILY_STATS   = `{"emeter":{"get_daystat":{"month":%d,"year":%d}}}`
+	GET_MONTHLY_STATS = `{"emeter":{""get_monthstat":{"year":%d}}}`
+	ERASE_ALL_STATS   = `{"emeter":{"erase_emeter_stat":null}}`
 )
 
 type Device struct {
@@ -61,10 +81,25 @@ type Response struct {
 		} `json:"set_relay_state"`
 	}
 
-	EMeter struct {
-		*Meter     `json:"get_realtime"`
-		DailyStats *DailyStats `json:"get_daystat"`
-	}
+	CNCloud struct {
+		Info struct {
+			Cloud
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"get_info"`
+		SetServerUrl struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"set_server_url"`
+		Bind struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"bind"`
+		Unbind struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"unbind"`
+	} `json:"cnCloud"`
 
 	Time struct {
 		GetTime struct {
@@ -90,6 +125,15 @@ type Response struct {
 		} `json:"set_timezone"`
 	}
 
+	Schedule struct {
+		Rule struct {
+			List         []Rule `json:"rule_list"`
+			Enable       int    `json:"enable"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"get_rules"`
+	} `json:"schedule"`
+
 	NetIf struct {
 		GetScanInfo struct {
 			List         []AP   `json:"ap_list"`
@@ -102,6 +146,15 @@ type Response struct {
 			ErrorMessage string `json:"err_msg"`
 		} `json:"set_stainfo"`
 	} `json:"netif"`
+
+	EMeter struct {
+		*Meter         `json:"get_realtime"`
+		DailyStats     *DailyStats `json:"get_daystat"`
+		EraseMeterStat struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"erase_emeter_stat"`
+	}
 }
 
 type Info struct {
@@ -134,6 +187,16 @@ func (i Info) IsLedOn() bool {
 	return i.LedOff == 0
 }
 
+type Cloud struct {
+	Username string `json:"username"`
+	Server   string `json:"server"`
+	Binded   int    `json:"binded"`
+}
+
+func (c Cloud) isBinded() bool {
+	return c.Binded == 1
+}
+
 type Meter struct {
 	Current float64 `json:"current"`
 	Voltage float64 `json:"voltage"`
@@ -155,6 +218,20 @@ type DailyUsage struct {
 type AP struct {
 	SSID    string `json:"ssid"`
 	KeyType int    `json:"key_type"`
+}
+
+type Rule struct {
+	Id       string   `json:"id"`
+	Name     string   `json:"name"`
+	Enable   int      `json:"enable"`
+	Minutes  int      `json:"smin"`
+	Repeat   int      `json:"repeat"`
+	Action   Action   `json:"sact"`
+	WeekDays []Action `json:"wday"`
+}
+
+func (r Rule) IsEnabled() bool {
+	return r.Enable == 1
 }
 
 func decrypt(request []byte) string {

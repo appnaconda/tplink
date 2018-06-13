@@ -232,7 +232,130 @@ func (p *HS100) SetWifi(ssid string, password string, keyType int) error {
 	if r.NetIf.SetWifi.ErrorCode != 0 {
 		return fmt.Errorf("failed to set wifi. Error code=%d, msg: %s", r.NetIf.SetWifi.ErrorCode, r.NetIf.SetWifi.ErrorMessage)
 	}
-	fmt.Println(data)
 
 	return nil
+}
+
+// Gets Cloud Info (Server, Username, Connection Status)
+func (p *HS100) CloudInfo() (*Cloud, error) {
+	data, err := exec(p.ip, GET_CLOUD_INFO)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(data)
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
+
+	if r.CNCloud.Info.ErrorCode != 0 {
+		return nil, fmt.Errorf("failed to get cloud info. Error code=%d, msg: %s", r.CNCloud.Info.ErrorCode, r.CNCloud.Info.ErrorMessage)
+	}
+
+	c := &Cloud{
+		Username: r.CNCloud.Info.Username,
+		Server:   r.CNCloud.Info.Server,
+		Binded:   r.CNCloud.Info.Binded,
+	}
+	return c, nil
+}
+
+// Set Server URL
+func (p *HS100) SetCloudUrl(url string) error {
+	cmd := fmt.Sprintf(SET_CLOUD_URL, url)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.CNCloud.SetServerUrl.ErrorCode != 0 {
+		return fmt.Errorf("failed to get cloud info. Error code=%d, msg: %s", r.CNCloud.SetServerUrl.ErrorCode, r.CNCloud.SetServerUrl.ErrorMessage)
+	}
+
+	return nil
+}
+
+// Connects with server using username & Password
+func (p *HS100) CloudBind(username string, password string) error {
+	cmd := fmt.Sprintf(CLOUD_BIND, username, password)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.CNCloud.Bind.ErrorCode != 0 {
+		return fmt.Errorf("failed to bind to cloud. Error code=%d, msg: %s", r.CNCloud.Bind.ErrorCode, r.CNCloud.Bind.ErrorMessage)
+	}
+
+	return nil
+}
+
+// Unregister Device from Cloud Account
+func (p *HS100) CloudUnbind() error {
+	data, err := exec(p.ip, CLOUD_UNBIND)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.CNCloud.Unbind.ErrorCode != 0 {
+		return fmt.Errorf("failed to unbind devide from cloud. Error code=%d, msg: %s", r.CNCloud.Unbind.ErrorCode, r.CNCloud.Unbind.ErrorMessage)
+	}
+
+	return nil
+}
+
+// Gets Next Scheduled Action
+func (p *HS100) GetNextScheduledAction() (string, error) {
+	data, err := exec(p.ip, GET_NEXT_SCHEDULE_ACTION)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: complete this.....
+	//r := Response{}
+	//if err := json.Unmarshal([]byte(data), &r); err != nil {
+	//	return err
+	//}
+	//
+	//if r.CNCloud.Unbind.ErrorCode != 0 {
+	//	return fmt.Errorf("failed to unbind devide from cloud. Error code=%d, msg: %s", r.CNCloud.Unbind.ErrorCode, r.CNCloud.Unbind.ErrorMessage)
+	//}
+
+	return data, nil
+}
+
+// Gets Schedule Rules List
+func (p *HS100) GetScheduleList() ([]Rule, error) {
+	data, err := exec(p.ip, GET_SCHEDULE_RULES_LIST)
+	if err != nil {
+		return nil, err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
+
+	if r.Schedule.Rule.ErrorCode != 0 {
+		return nil, fmt.Errorf("failed to get scheduled rules from device. Error code=%d, msg: %s", r.Schedule.Rule.ErrorCode, r.Schedule.Rule.ErrorMessage)
+	}
+
+	return r.Schedule.Rule.List, nil
 }
