@@ -4,8 +4,10 @@ package tplink
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -20,6 +22,61 @@ const (
 	OFF Action = iota
 	ON
 )
+
+const (
+	DISABLED = iota
+	ENABLED
+)
+
+type TimeOption int
+
+const (
+	NONE TimeOption = iota
+	SUNRISE
+	SUNSET
+)
+
+type Days struct {
+	Sunday    bool
+	Monday    bool
+	Tuesday   bool
+	Wednesday bool
+	Thursday  bool
+	Friday    bool
+	Saturday  bool
+}
+
+func (d Days) String() string {
+	days := []string{"0", "0", "0", "0", "0", "0", "0"}
+	if d.Sunday {
+		days[time.Sunday] = "1"
+	}
+
+	if d.Monday {
+		days[time.Monday] = "1"
+	}
+
+	if d.Tuesday {
+		days[time.Tuesday] = "1"
+	}
+
+	if d.Wednesday {
+		days[time.Wednesday] = "1"
+	}
+
+	if d.Thursday {
+		days[time.Thursday] = "1"
+	}
+
+	if d.Friday {
+		days[time.Friday] = "1"
+	}
+
+	if d.Saturday {
+		days[time.Saturday] = "1"
+	}
+	return fmt.Sprintf("[%s]", strings.Join(days, ","))
+}
 
 // https://github.com/softScheck/tplink-smartplug/blob/master/tplink-smarthome-commands.txt
 const (
@@ -49,6 +106,10 @@ const (
 	// Schedule Commands
 	GET_NEXT_SCHEDULE_ACTION = `{"schedule":{"get_next_action":null}}`
 	GET_SCHEDULE_RULES_LIST  = `{"schedule":{"get_rules":null}}`
+	ADD_SCHEDULE_RULE        = `{"schedule":{"add_rule":{"stime_opt":%d,"wday":%s,"smin":%d,"enable":%d,"repeat":%d,"etime_opt":-1,"name":"%s","eact":-1,"month":%d,"sact":%d,"year":%d,"longitude":0,"day":%d,"force":0,"latitude":0,"emin":0},"set_overall_enable":{"enable":1}}}`
+	EDIT_SCHEDULE_RULE       = `{"schedule":{"edit_rule":{"stime_opt":%d,"wday":%s,"smin":%d,"enable":%d,"repeat":%d,"etime_opt":-1,"id":"%s","name":"%s","eact":-1,"month":%d,"sact":%d,"year":%d,"longitude":0,"day":%d,"force":0,"latitude":0,"emin":0}}}`
+	DELETE_SCHEDULE_RULE     = `{"schedule":{"delete_rule":{"id":"%s"}}}`
+	DELETE_ALL_SCHEDULE_RULE = `{"schedule":{"delete_all_rules":null,"erase_runtime_stat":null}}`
 	// Countdown Rule Commands
 	// TODO
 	// Anti-Theft Rule Commands (aka Away Mode)
@@ -126,12 +187,34 @@ type Response struct {
 	}
 
 	Schedule struct {
+		GetNextAction struct {
+			NextAction
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"get_next_action"`
 		Rule struct {
 			List         []Rule `json:"rule_list"`
 			Enable       int    `json:"enable"`
 			ErrorCode    int    `json:"err_code"`
 			ErrorMessage string `json:"err_msg"`
 		} `json:"get_rules"`
+		AddRule struct {
+			ID           string `json:"id"`
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"add_rule"`
+		EditRule struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"edit_rule"`
+		DeleteRule struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"delete_rule"`
+		DeleteAllRules struct {
+			ErrorCode    int    `json:"err_code"`
+			ErrorMessage string `json:"err_msg"`
+		} `json:"delete_all_rules"`
 	} `json:"schedule"`
 
 	NetIf struct {
@@ -221,13 +304,24 @@ type AP struct {
 }
 
 type Rule struct {
-	Id       string   `json:"id"`
-	Name     string   `json:"name"`
-	Enable   int      `json:"enable"`
-	Minutes  int      `json:"smin"`
-	Repeat   int      `json:"repeat"`
-	Action   Action   `json:"sact"`
-	WeekDays []Action `json:"wday"`
+	Id       string     `json:"id"`
+	Name     string     `json:"name"`
+	Enable   int        `json:"enable"`
+	Minutes  int        `json:"smin"`
+	Repeat   int        `json:"repeat"`
+	Action   Action     `json:"sact"`
+	WeekDays []Action   `json:"wday"`
+	Year     int        `json:"year"` // when repeat = 0, year, month and day will be provided
+	Month    int        `json:"month"`
+	Day      int        `json:"day"`
+	TimeOpt  TimeOption `json:"stime_opt"` // If set, means that this rule will run on sunrise or sunset
+}
+
+type NextAction struct {
+	RuleID              string `json:"id"`
+	Type                int    `json:"type"` // ???
+	ScheduledTimeSecond int    `json:"schd_time"`
+	Action              Action `json:"action"`
 }
 
 func (r Rule) IsEnabled() bool {

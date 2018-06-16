@@ -322,23 +322,28 @@ func (p *HS100) CloudUnbind() error {
 }
 
 // Gets Next Scheduled Action
-func (p *HS100) GetNextScheduledAction() (string, error) {
+func (p *HS100) GetNextScheduledAction() (*NextAction, error) {
 	data, err := exec(p.ip, GET_NEXT_SCHEDULE_ACTION)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// TODO: complete this.....
-	//r := Response{}
-	//if err := json.Unmarshal([]byte(data), &r); err != nil {
-	//	return err
-	//}
-	//
-	//if r.CNCloud.Unbind.ErrorCode != 0 {
-	//	return fmt.Errorf("failed to unbind devide from cloud. Error code=%d, msg: %s", r.CNCloud.Unbind.ErrorCode, r.CNCloud.Unbind.ErrorMessage)
-	//}
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
 
-	return data, nil
+	if r.Schedule.GetNextAction.ErrorCode != 0 {
+		return nil, fmt.Errorf("failed to get next scheduled action. Error code=%d, msg: %s", r.Schedule.GetNextAction.ErrorCode, r.Schedule.GetNextAction.ErrorMessage)
+	}
+
+	resp := &NextAction{
+		RuleID:              r.Schedule.GetNextAction.RuleID,
+		ScheduledTimeSecond: r.Schedule.GetNextAction.ScheduledTimeSecond,
+		Action:              r.Schedule.GetNextAction.Action,
+		Type:                r.Schedule.GetNextAction.Type,
+	}
+	return resp, nil
 }
 
 // Gets Schedule Rules List
@@ -358,4 +363,104 @@ func (p *HS100) GetScheduleList() ([]Rule, error) {
 	}
 
 	return r.Schedule.Rule.List, nil
+}
+
+// Add New Schedule Rule
+func (p *HS100) AddScheduleRule(name string, days Days, action Action, minutes int, enable int, year int, month int, day int) (string, error) {
+	return p.addScheduleRule(NONE, name, days, action, minutes, enable, year, month, day)
+}
+
+func (p *HS100) AddSunSetScheduleRule(name string, days Days, action Action, enable int, year int, month int, day int) (string, error) {
+	return p.addScheduleRule(SUNSET, name, days, action, 0, enable, year, month, day)
+}
+
+func (p *HS100) AddSunRiseScheduleRule(name string, days Days, action Action, enable int, year int, month int, day int) (string, error) {
+	return p.addScheduleRule(SUNRISE, name, days, action, 0, enable, year, month, day)
+}
+
+func (p *HS100) addScheduleRule(timeOpt TimeOption, name string, days Days, action Action, minutes int, enable int, year int, month int, day int) (string, error) {
+	weekdays := days.String()
+	repeat := OFF
+
+	if weekdays != "[0,0,0,0,0,0,0]" {
+		repeat = ON
+	}
+	cmd := fmt.Sprintf(ADD_SCHEDULE_RULE, timeOpt, weekdays, minutes, enable, repeat, name, month, action, year, day)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return "", err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return "", err
+	}
+
+	if r.Schedule.AddRule.ErrorCode != 0 {
+		return "", fmt.Errorf("failed to add scheduled rules. Error code=%d, msg: %s", r.Schedule.AddRule.ErrorCode, r.Schedule.AddRule.ErrorMessage)
+	}
+
+	return r.Schedule.AddRule.ID, nil
+}
+
+func (p *HS100) EditScheduleRule(id string, timeOpt TimeOption, name string, days Days, action Action, minutes int, enable int, year int, month int, day int) error {
+	weekdays := days.String()
+	repeat := OFF
+
+	if weekdays != "[0,0,0,0,0,0,0]" {
+		repeat = ON
+	}
+	cmd := fmt.Sprintf(EDIT_SCHEDULE_RULE, timeOpt, weekdays, minutes, enable, repeat, id, name, month, action, year, day)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.Schedule.EditRule.ErrorCode != 0 {
+		return fmt.Errorf("failed to edit scheduled rules. Error code=%d, msg: %s", r.Schedule.EditRule.ErrorCode, r.Schedule.EditRule.ErrorMessage)
+	}
+
+	return nil
+}
+
+func (p *HS100) DeleteScheduleRule(id string) error {
+	cmd := fmt.Sprintf(DELETE_SCHEDULE_RULE, id)
+	data, err := exec(p.ip, cmd)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.Schedule.DeleteRule.ErrorCode != 0 {
+		return fmt.Errorf("failed to edit scheduled rules. Error code=%d, msg: %s", r.Schedule.DeleteRule.ErrorCode, r.Schedule.DeleteRule.ErrorMessage)
+	}
+
+	return nil
+}
+
+func (p *HS100) DeleteAllScheduleRule() error {
+	data, err := exec(p.ip, DELETE_ALL_SCHEDULE_RULE)
+	if err != nil {
+		return err
+	}
+
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return err
+	}
+
+	if r.Schedule.DeleteAllRules.ErrorCode != 0 {
+		return fmt.Errorf("failed to edit scheduled rules. Error code=%d, msg: %s", r.Schedule.DeleteAllRules.ErrorCode, r.Schedule.DeleteAllRules.ErrorMessage)
+	}
+
+	return nil
 }
