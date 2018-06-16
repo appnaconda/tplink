@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-const (
-	defaultPort = 9999
-	connTimeout = 1 * time.Second
-)
-
 type Action int
 
 const (
@@ -110,17 +105,13 @@ const (
 	EDIT_SCHEDULE_RULE       = `{"schedule":{"edit_rule":{"stime_opt":%d,"wday":%s,"smin":%d,"enable":%d,"repeat":%d,"etime_opt":-1,"id":"%s","name":"%s","eact":-1,"month":%d,"sact":%d,"year":%d,"longitude":0,"day":%d,"force":0,"latitude":0,"emin":0}}}`
 	DELETE_SCHEDULE_RULE     = `{"schedule":{"delete_rule":{"id":"%s"}}}`
 	DELETE_ALL_SCHEDULE_RULE = `{"schedule":{"delete_all_rules":null,"erase_runtime_stat":null}}`
-	// Countdown Rule Commands
-	// TODO
-	// Anti-Theft Rule Commands (aka Away Mode)
-	// TODO
 
 	//  --- HS110 only ---
 
 	// EMeter Energy Usage Statistics Commands
 	GET_METER         = `{"system":{"get_sysinfo":{}}, "emeter":{"get_realtime":{},"get_vgain_igain":{}}}`
 	GET_DAILY_STATS   = `{"emeter":{"get_daystat":{"month":%d,"year":%d}}}`
-	GET_MONTHLY_STATS = `{"emeter":{""get_monthstat":{"year":%d}}}`
+	GET_MONTHLY_STATS = `{"emeter":{"get_monthstat":{"year":%d}}}`
 	ERASE_ALL_STATS   = `{"emeter":{"erase_emeter_stat":null}}`
 )
 
@@ -232,12 +223,13 @@ type Response struct {
 
 	EMeter struct {
 		*Meter         `json:"get_realtime"`
-		DailyStats     *DailyStats `json:"get_daystat"`
+		MonthlyStats   *MonthyStats `json:"get_monthstat"`
+		DailyStats     *DailyStats  `json:"get_daystat"`
 		EraseMeterStat struct {
 			ErrorCode    int    `json:"err_code"`
 			ErrorMessage string `json:"err_msg"`
 		} `json:"erase_emeter_stat"`
-	}
+	} `json:"emeter"`
 }
 
 type Info struct {
@@ -285,6 +277,16 @@ type Meter struct {
 	Voltage float64 `json:"voltage"`
 	Power   float64 `json:"power"`
 	Total   float64 `json:"total"`
+}
+
+type MonthyStats struct {
+	MonthlyUsageList []*MonthlyUsage `json:"month_list"`
+}
+
+type MonthlyUsage struct {
+	Year   int
+	Month  int
+	Energy float64
 }
 
 type DailyStats struct {

@@ -23,7 +23,6 @@ func (p *HS100) Info() (*Info, error) {
 	}
 
 	return r.System.Info, nil
-
 }
 
 // Reboot
@@ -403,6 +402,7 @@ func (p *HS100) addScheduleRule(timeOpt TimeOption, name string, days Days, acti
 	return r.Schedule.AddRule.ID, nil
 }
 
+// Edit Schedule Rule with given ID
 func (p *HS100) EditScheduleRule(id string, timeOpt TimeOption, name string, days Days, action Action, minutes int, enable int, year int, month int, day int) error {
 	weekdays := days.String()
 	repeat := OFF
@@ -428,6 +428,7 @@ func (p *HS100) EditScheduleRule(id string, timeOpt TimeOption, name string, day
 	return nil
 }
 
+// Delete Schedule Rule with given ID
 func (p *HS100) DeleteScheduleRule(id string) error {
 	cmd := fmt.Sprintf(DELETE_SCHEDULE_RULE, id)
 	data, err := exec(p.ip, cmd)
@@ -447,6 +448,7 @@ func (p *HS100) DeleteScheduleRule(id string) error {
 	return nil
 }
 
+// Delete All Schedule Rules and Erase Statistics
 func (p *HS100) DeleteAllScheduleRule() error {
 	data, err := exec(p.ip, DELETE_ALL_SCHEDULE_RULE)
 	if err != nil {

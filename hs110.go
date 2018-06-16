@@ -41,21 +41,18 @@ func (p *HS110) DailyStats(month int, year int) ([]*DailyUsage, error) {
 }
 
 // Get Montly Statistic for given Year
-func (p *HS110) MonthlyStats(year int) (string, error) {
+func (p *HS110) MonthlyStats(year int) ([]*MonthlyUsage, error) {
 	data, err := exec(p.ip, fmt.Sprintf(GET_MONTHLY_STATS, year))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	// TODO: complete this
-	//r := Response{}
-	//if err := json.Unmarshal([]byte(data), &r); err != nil {
-	//	return nil, err
-	//}s
-	//
-	//return r.EMeter.DailyStats.DailyUsageList, nil
+	r := Response{}
+	if err := json.Unmarshal([]byte(data), &r); err != nil {
+		return nil, err
+	}
 
-	return data, nil
+	return r.EMeter.MonthlyStats.MonthlyUsageList, nil
 }
 
 // Erase All EMeter Statistics
