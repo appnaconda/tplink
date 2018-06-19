@@ -1,4 +1,3 @@
-// https://www.softscheck.com/en/reverse-engineering-tp-link-hs110/
 package tplink
 
 import (
@@ -73,7 +72,6 @@ func (d Days) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(days, ","))
 }
 
-// https://github.com/softScheck/tplink-smartplug/blob/master/tplink-smarthome-commands.txt
 const (
 	// --- Plug HS100 and HS110 ---
 
