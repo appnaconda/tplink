@@ -73,3 +73,7 @@ func (p *HS110) EraseAllStats() error {
 
 	return nil
 }
+
+func NewHS110(ip string) *HS110 {
+	return &HS110{HS100{ip: ip}}
+}

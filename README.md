@@ -6,6 +6,7 @@ A Go library for controlling tp-link devices, based on this information: [https:
 
 * HS100
 * HS110 
+* HS105
 
 # Supported Features
 
