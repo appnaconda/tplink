@@ -466,3 +466,7 @@ func (p *HS100) DeleteAllScheduleRule() error {
 
 	return nil
 }
+
+func NewHS100(ip string) *HS100 {
+	return &HS100{ip: ip}
+}

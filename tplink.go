@@ -429,11 +429,3 @@ func Scan(timeout time.Duration) ([]Device, error) {
 
 	return devices, err
 }
-
-func NewHS110(ip string) *HS110 {
-	return &HS110{HS100{ip: ip}}
-}
-
-func NewHS100(ip string) *HS100 {
-	return &HS100{ip: ip}
-}
