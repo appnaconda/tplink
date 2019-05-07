@@ -355,10 +355,10 @@ func encrypt(s string) []byte {
 	return result[4:]
 }
 
-func exec(ip string, cmd string) (string, error) {
+func exec(ip string, cmd string, timeout time.Duration) (string, error) {
 	data := encrypt(cmd)
 	port := 9999
-	conn, err := net.Dial("udp4", ip+":"+strconv.Itoa(port))
+	conn, err := net.DialTimeout("udp4", ip+":"+strconv.Itoa(port), timeout)
 	if err != nil {
 		return "", err
 	}

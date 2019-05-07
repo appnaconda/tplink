@@ -7,12 +7,13 @@ import (
 )
 
 type HS100 struct {
-	ip string
+	ip      string
+	timeout time.Duration
 }
 
 // Get System Info (Software & Hardware Versions, MAC, deviceID, hwID etc.)
 func (p *HS100) Info() (*Info, error) {
-	data, err := exec(p.ip, GET_INFO)
+	data, err := exec(p.ip, GET_INFO, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -27,17 +28,17 @@ func (p *HS100) Info() (*Info, error) {
 
 // Reboot
 func (p *HS100) Reboot() (string, error) {
-	return exec(p.ip, REBOOT)
+	return exec(p.ip, REBOOT, p.timeout)
 }
 
 // Reset
 func (p *HS100) Reset() (string, error) {
-	return exec(p.ip, RESET)
+	return exec(p.ip, RESET, p.timeout)
 }
 
 // Set alias/name
 func (p *HS100) SetAlias(alias string) error {
-	data, err := exec(p.ip, fmt.Sprintf(SET_ALIAS, alias))
+	data, err := exec(p.ip, fmt.Sprintf(SET_ALIAS, alias), p.timeout)
 	if err != nil {
 		return err
 	}
@@ -55,7 +56,7 @@ func (p *HS100) SetAlias(alias string) error {
 
 // Turn On
 func (p *HS100) TurnOn() error {
-	data, err := exec(p.ip, TURN_ON)
+	data, err := exec(p.ip, TURN_ON, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func (p *HS100) TurnOn() error {
 
 // Turn Off
 func (p *HS100) TurnOff() error {
-	data, err := exec(p.ip, TURN_OFF)
+	data, err := exec(p.ip, TURN_OFF, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func (p *HS100) TurnOff() error {
 
 // Turn Led Light On
 func (p *HS100) TurnLedOn() error {
-	data, err := exec(p.ip, TURN_LED_ON)
+	data, err := exec(p.ip, TURN_LED_ON, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ func (p *HS100) TurnLedOn() error {
 
 // Turn Led Light Off
 func (p *HS100) TurnLedOff() error {
-	data, err := exec(p.ip, TURN_LED_OFF)
+	data, err := exec(p.ip, TURN_LED_OFF, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -127,7 +128,7 @@ func (p *HS100) TurnLedOff() error {
 
 // TODO: return a timezone instead of index
 func (p *HS100) TimeZone() (int, error) {
-	data, err := exec(p.ip, GET_TIMEZONE)
+	data, err := exec(p.ip, GET_TIMEZONE, p.timeout)
 	if err != nil {
 		return 0, err
 	}
@@ -147,7 +148,7 @@ func (p *HS100) TimeZone() (int, error) {
 }
 
 func (p *HS100) Time() (time.Time, error) {
-	data, err := exec(p.ip, GET_TIME)
+	data, err := exec(p.ip, GET_TIME, p.timeout)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -181,7 +182,7 @@ func (p *HS100) Time() (time.Time, error) {
 func (p *HS100) SetTimeZone(t time.Time) error {
 	// TODO: timezone
 	cmd := fmt.Sprintf(SET_TIMEZONE, t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 18)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -199,7 +200,7 @@ func (p *HS100) SetTimeZone(t time.Time) error {
 }
 
 func (p *HS100) ScanWifi() ([]AP, error) {
-	data, err := exec(p.ip, SCAN_WIFI)
+	data, err := exec(p.ip, SCAN_WIFI, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +219,7 @@ func (p *HS100) ScanWifi() ([]AP, error) {
 
 func (p *HS100) SetWifi(ssid string, password string, keyType int) error {
 	cmd := fmt.Sprintf(SET_WIFI, ssid, password, keyType)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -237,7 +238,7 @@ func (p *HS100) SetWifi(ssid string, password string, keyType int) error {
 
 // Gets Cloud Info (Server, Username, Connection Status)
 func (p *HS100) CloudInfo() (*Cloud, error) {
-	data, err := exec(p.ip, GET_CLOUD_INFO)
+	data, err := exec(p.ip, GET_CLOUD_INFO, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +265,7 @@ func (p *HS100) CloudInfo() (*Cloud, error) {
 // Set Server URL
 func (p *HS100) SetCloudUrl(url string) error {
 	cmd := fmt.Sprintf(SET_CLOUD_URL, url)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (p *HS100) SetCloudUrl(url string) error {
 // Connects with server using username & Password
 func (p *HS100) CloudBind(username string, password string) error {
 	cmd := fmt.Sprintf(CLOUD_BIND, username, password)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -303,7 +304,7 @@ func (p *HS100) CloudBind(username string, password string) error {
 
 // Unregister Device from Cloud Account
 func (p *HS100) CloudUnbind() error {
-	data, err := exec(p.ip, CLOUD_UNBIND)
+	data, err := exec(p.ip, CLOUD_UNBIND, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -322,7 +323,7 @@ func (p *HS100) CloudUnbind() error {
 
 // Gets Next Scheduled Action
 func (p *HS100) GetNextScheduledAction() (*NextAction, error) {
-	data, err := exec(p.ip, GET_NEXT_SCHEDULE_ACTION)
+	data, err := exec(p.ip, GET_NEXT_SCHEDULE_ACTION, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +348,7 @@ func (p *HS100) GetNextScheduledAction() (*NextAction, error) {
 
 // Gets Schedule Rules List
 func (p *HS100) GetScheduleList() ([]Rule, error) {
-	data, err := exec(p.ip, GET_SCHEDULE_RULES_LIST)
+	data, err := exec(p.ip, GET_SCHEDULE_RULES_LIST, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +386,7 @@ func (p *HS100) addScheduleRule(timeOpt TimeOption, name string, days Days, acti
 		repeat = ON
 	}
 	cmd := fmt.Sprintf(ADD_SCHEDULE_RULE, timeOpt, weekdays, minutes, enable, repeat, name, month, action, year, day)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return "", err
 	}
@@ -411,7 +412,7 @@ func (p *HS100) EditScheduleRule(id string, timeOpt TimeOption, name string, day
 		repeat = ON
 	}
 	cmd := fmt.Sprintf(EDIT_SCHEDULE_RULE, timeOpt, weekdays, minutes, enable, repeat, id, name, month, action, year, day)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -431,7 +432,7 @@ func (p *HS100) EditScheduleRule(id string, timeOpt TimeOption, name string, day
 // Delete Schedule Rule with given ID
 func (p *HS100) DeleteScheduleRule(id string) error {
 	cmd := fmt.Sprintf(DELETE_SCHEDULE_RULE, id)
-	data, err := exec(p.ip, cmd)
+	data, err := exec(p.ip, cmd, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -450,7 +451,7 @@ func (p *HS100) DeleteScheduleRule(id string) error {
 
 // Delete All Schedule Rules and Erase Statistics
 func (p *HS100) DeleteAllScheduleRule() error {
-	data, err := exec(p.ip, DELETE_ALL_SCHEDULE_RULE)
+	data, err := exec(p.ip, DELETE_ALL_SCHEDULE_RULE, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -467,6 +468,6 @@ func (p *HS100) DeleteAllScheduleRule() error {
 	return nil
 }
 
-func NewHS100(ip string) *HS100 {
-	return &HS100{ip: ip}
+func NewHS100(ip string, timeout time.Duration) *HS100 {
+	return &HS100{ip: ip, timeout: timeout}
 }

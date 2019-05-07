@@ -60,13 +60,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/appnaconda/tplink"
 )
 
 func main() {
 	ip := "10.0.1.XXX" // Your device IP
-	plug := tplink.NewHS100(ip)
+	plug := tplink.NewHS100(ip, 2 * time.Second)
 
 	info, err := plug.Info()
 	if err != nil {
