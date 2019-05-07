@@ -3,6 +3,7 @@ package tplink
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // TP-Link HS110 smart plug
@@ -12,7 +13,7 @@ type HS110 struct {
 
 // Gets Realtime Current and Voltage Reading
 func (p *HS110) Meter() (*Meter, error) {
-	data, err := exec(p.ip, GET_METER)
+	data, err := exec(p.ip, GET_METER, p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +28,7 @@ func (p *HS110) Meter() (*Meter, error) {
 
 // Gets Daily Statistic for given Month
 func (p *HS110) DailyStats(month int, year int) ([]*DailyUsage, error) {
-	data, err := exec(p.ip, fmt.Sprintf(GET_DAILY_STATS, month, year))
+	data, err := exec(p.ip, fmt.Sprintf(GET_DAILY_STATS, month, year), p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +43,7 @@ func (p *HS110) DailyStats(month int, year int) ([]*DailyUsage, error) {
 
 // Get Montly Statistic for given Year
 func (p *HS110) MonthlyStats(year int) ([]*MonthlyUsage, error) {
-	data, err := exec(p.ip, fmt.Sprintf(GET_MONTHLY_STATS, year))
+	data, err := exec(p.ip, fmt.Sprintf(GET_MONTHLY_STATS, year), p.timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func (p *HS110) MonthlyStats(year int) ([]*MonthlyUsage, error) {
 
 // Erase All EMeter Statistics
 func (p *HS110) EraseAllStats() error {
-	data, err := exec(p.ip, ERASE_ALL_STATS)
+	data, err := exec(p.ip, ERASE_ALL_STATS, p.timeout)
 	if err != nil {
 		return err
 	}
@@ -74,6 +75,6 @@ func (p *HS110) EraseAllStats() error {
 	return nil
 }
 
-func NewHS110(ip string) *HS110 {
-	return &HS110{HS100{ip: ip}}
+func NewHS110(ip string, timeout time.Duration) *HS110 {
+	return &HS110{HS100{ip: ip, timeout: timeout}}
 }
